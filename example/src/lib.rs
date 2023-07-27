@@ -8,6 +8,7 @@ define_plugin! {
         register_function!("SumInts", sum_ints);
         register_function!("UseTypes", use_types);
         register_function!("CallDemo", call_demo);
+        register_function!("InitializeManager", initialize_manager);
     }
 }
 
@@ -100,4 +101,29 @@ unsafe impl RefRepr for PlayerPuppet {
     type Type = Weak;
 
     const CLASS_NAME: &'static str = "PlayerPuppet";
+}
+
+#[allow(dead_code)]
+#[repr(transparent)]
+#[derive(Clone, Default)]
+struct SomeManager(WRef<IScriptable>);
+
+unsafe impl RefRepr for SomeManager {
+    type Type = Weak;
+
+    const CLASS_NAME: &'static str = "SomeManager";
+}
+
+#[redscript_import]
+impl SomeManager {
+    #[redscript(name = "SomeRedscriptMethod")]
+    fn some_redscript_method(&self) -> ();
+
+    #[redscript(name = "SomeStaticRedscriptMethod")]
+    fn some_static_redscript_method() -> ();
+}
+
+fn initialize_manager(manager: SomeManager) {
+    manager.some_redscript_method();
+    SomeManager::some_static_redscript_method();
 }
