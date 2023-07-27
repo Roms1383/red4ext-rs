@@ -8,7 +8,7 @@ define_plugin! {
         register_function!("SumInts", sum_ints);
         register_function!("UseTypes", use_types);
         register_function!("CallDemo", call_demo);
-        register_function!("InitializeManager", initialize_manager);
+        register_function!("CallProxy", call_proxy);
     }
 }
 
@@ -106,24 +106,20 @@ unsafe impl RefRepr for PlayerPuppet {
 #[allow(dead_code)]
 #[repr(transparent)]
 #[derive(Clone, Default)]
-struct SomeManager(WRef<IScriptable>);
+struct RustTdbId(WRef<IScriptable>);
 
-unsafe impl RefRepr for SomeManager {
+unsafe impl RefRepr for RustTdbId {
     type Type = Weak;
 
-    const CLASS_NAME: &'static str = "SomeManager";
+    const CLASS_NAME: &'static str = "RustTDBID";
 }
 
 #[redscript_import]
-impl SomeManager {
-    #[redscript(name = "SomeRedscriptMethod")]
-    fn some_redscript_method(&self) -> ();
-
-    #[redscript(name = "SomeStaticRedscriptMethod")]
-    fn some_static_redscript_method() -> ();
+impl RustTdbId {
+    #[redscript(name = "ToStringDEBUG")]
+    fn to_string_debug(id: TweakDbId) -> String;
 }
 
-fn initialize_manager(manager: SomeManager) {
-    manager.some_redscript_method();
-    SomeManager::some_static_redscript_method();
+fn call_proxy(id: TweakDbId) -> String {
+    RustTdbId::to_string_debug(id)
 }

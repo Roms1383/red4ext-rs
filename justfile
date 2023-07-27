@@ -37,7 +37,7 @@ alias i := install
 
 # copy all files to game folder (before launching the game)
 install:
- cargo build --release
+ cargo build
  @if (Test-Path '{{ join(red4ext_game_dir, mod_name) }}') { \
     Write-Host "Folder {{ join(red4ext_game_dir, mod_name) }} already exist"; \
  } else { \
