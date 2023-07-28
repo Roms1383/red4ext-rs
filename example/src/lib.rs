@@ -117,9 +117,9 @@ unsafe impl RefRepr for RustTdbId {
 #[redscript_import]
 impl RustTdbId {
     #[redscript(name = "ToStringDEBUG")]
-    fn to_string_debug(id: TweakDbId) -> String;
+    fn to_string_debug(&self, id: TweakDbId) -> String;
 }
 
-fn call_proxy(id: TweakDbId) -> String {
-    RustTdbId::to_string_debug(id)
+fn call_proxy(proxy: RustTdbId, id: TweakDbId) -> String {
+    proxy.to_string_debug(id)
 }

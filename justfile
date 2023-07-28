@@ -9,7 +9,7 @@ mod_name           := "example"
 bin_name           := "example.dll"
 log_name           := "example.log"
 
-red4ext_repo_dir   := join(".", "target", "release")
+red4ext_repo_dir   := join(".", "target", "debug")
 red4ext_game_dir   := join(game_dir, "red4ext", "plugins")
 
 redscript_repo_dir := join(".", "example", "reds")
