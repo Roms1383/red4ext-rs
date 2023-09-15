@@ -8,6 +8,7 @@ define_plugin! {
         register_function!("SumInts", sum_ints);
         register_function!("UseTypes", use_types);
         register_function!("CallDemo", call_demo);
+        register_function!("CallNativeDemo", call_native_demo);
     }
 }
 
@@ -100,4 +101,33 @@ unsafe impl RefRepr for PlayerPuppet {
     type Type = Weak;
 
     const CLASS_NAME: &'static str = "PlayerPuppet";
+}
+
+/// define a binding for a native class type
+#[derive(Clone, Default)]
+#[repr(transparent)]
+struct TimeSystem(Ref<IScriptable>);
+
+unsafe impl RefRepr for TimeSystem {
+    type Type = Strong;
+
+    const CLASS_NAME: &'static str = "TimeSystem";
+}
+
+#[redscript_import]
+impl TimeSystem {
+    #[redscript(native)]
+    fn get_game_time_stamp(&self) -> f32;
+}
+
+/// call function with handle to native class
+///
+/// try in-game in CET console:
+///
+/// ```lua
+/// CallNativeDemo(Game.GetTimeSystem())
+/// ```
+/// > ⚠️ output can be found in mod's logs
+fn call_native_demo(time: TimeSystem) {
+    info!("current timestamp: {}", time.get_game_time_stamp());
 }
