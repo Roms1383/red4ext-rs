@@ -9,6 +9,7 @@ define_plugin! {
         register_function!("UseTypes", use_types);
         register_function!("CallDemo", call_demo);
         register_function!("CallNativeDemo", call_native_demo);
+        register_function!("CompareEngineTime", compare_engine_time);
     }
 }
 
@@ -161,4 +162,8 @@ impl EngineTime {
     // [2023-09-15 18:03:07.817] [example] [error] Function 'CallNativeDemo' has panicked: failed to invoke EngineTime::FromFloat: function not found
     // #[redscript(native)]
     // fn from_float(time: f32) -> Self;
+}
+
+fn compare_engine_time(sim: EngineTime, float: f32) {
+    info!("compare engine time: {:#?}\n{}", sim, float);
 }
