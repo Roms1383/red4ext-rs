@@ -43,6 +43,7 @@ pub mod ffi {
         type EntityId = crate::interop::EntityId;
         type CStackType = crate::interop::StackArg;
         type Variant = crate::interop::Variant;
+        type EngineTime = crate::interop::EngineTime;
 
         #[cxx_name = "GetFunction"]
         fn get_function(self: Pin<&mut IRttiSystem>, name: CName) -> *mut CGlobalFunction;

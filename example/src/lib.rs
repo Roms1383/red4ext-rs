@@ -118,6 +118,9 @@ unsafe impl RefRepr for TimeSystem {
 impl TimeSystem {
     #[redscript(native)]
     fn get_game_time_stamp(&self) -> f32;
+
+    #[redscript(native)]
+    fn get_sim_time(&self) -> EngineTime;
 }
 
 /// call function with handle to native class
@@ -130,4 +133,5 @@ impl TimeSystem {
 /// > ⚠️ output can be found in mod's logs
 fn call_native_demo(time: TimeSystem) {
     info!("current timestamp: {}", time.get_game_time_stamp());
+    info!("current engine time: {:#?}", time.get_sim_time());
 }
