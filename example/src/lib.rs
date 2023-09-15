@@ -136,6 +136,7 @@ fn call_native_demo(time: TimeSystem) {
     info!("current timestamp: {}", time.get_game_time_stamp());
     let sim = time.get_sim_time();
     // info!("current engine time as float (static): {}", EngineTime::to_float(sim.clone())); // see error below
+    // info!("engine time from float: {:#?}", EngineTime::from_float(1694775623.)); // see error below
     info!("current engine time: {:#?}", sim);
 }
 
@@ -156,4 +157,8 @@ impl EngineTime {
     // [2023-09-15 17:54:32.552] [example] [error] Function 'CallNativeDemo' has panicked: failed to invoke EngineTime::ToFloat: function not found
     // #[redscript(native)]
     // fn to_float(time: Self) -> f32;
+
+    // [2023-09-15 18:03:07.817] [example] [error] Function 'CallNativeDemo' has panicked: failed to invoke EngineTime::FromFloat: function not found
+    // #[redscript(native)]
+    // fn from_float(time: f32) -> Self;
 }
