@@ -134,7 +134,9 @@ impl TimeSystem {
 /// > ⚠️ output can be found in mod's logs
 fn call_native_demo(time: TimeSystem) {
     info!("current timestamp: {}", time.get_game_time_stamp());
-    info!("current engine time: {:#?}", time.get_sim_time());
+    let sim = time.get_sim_time();
+    // info!("current engine time as float (static): {}", EngineTime::to_float(sim.clone())); // see error below
+    info!("current engine time: {:#?}", sim);
 }
 
 #[derive(Debug, Default, Clone)]
@@ -146,4 +148,12 @@ struct EngineTime {
 unsafe impl NativeRepr for EngineTime {
     // this needs to refer to an actual in-game type name
     const NAME: &'static str = "EngineTime";
+}
+
+/// see [cyberdoc](https://jac3km4.github.io/cyberdoc/#28637)
+#[redscript_import]
+impl EngineTime {
+    // [2023-09-15 17:54:32.552] [example] [error] Function 'CallNativeDemo' has panicked: failed to invoke EngineTime::ToFloat: function not found
+    // #[redscript(native)]
+    // fn to_float(time: Self) -> f32;
 }
