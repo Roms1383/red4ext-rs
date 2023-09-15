@@ -12,16 +12,6 @@ use crate::ffi;
 
 pub type Mem = *mut std::ffi::c_void;
 
-#[derive(Debug, Clone, Default)]
-#[repr(C, packed(8))]
-pub struct EngineTime {
-    unk00: [u8; 0x8 - 0x0],
-}
-unsafe impl ExternType for EngineTime {
-    type Id = type_id!("RED4ext::EngineTime");
-    type Kind = cxx::kind::Trivial;
-}
-
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 #[repr(C)]
 pub struct CName {

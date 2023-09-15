@@ -5,7 +5,7 @@ pub use ffi::IScriptable;
 use red4ext_sys::ffi;
 pub use red4ext_sys::interop::{
     CName, EntityId, GameEItemIdFlag, GamedataItemStructure, ItemId, RedString, ResRef, TweakDbId,
-    Variant, VoidPtr, EngineTime
+    Variant, VoidPtr
 };
 
 use crate::conv::{FromRepr, IntoRepr, NativeRepr};

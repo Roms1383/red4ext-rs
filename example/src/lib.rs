@@ -114,6 +114,7 @@ unsafe impl RefRepr for TimeSystem {
     const CLASS_NAME: &'static str = "TimeSystem";
 }
 
+/// see [cyberdoc](https://jac3km4.github.io/cyberdoc/#27194)
 #[redscript_import]
 impl TimeSystem {
     #[redscript(native)]
@@ -134,4 +135,15 @@ impl TimeSystem {
 fn call_native_demo(time: TimeSystem) {
     info!("current timestamp: {}", time.get_game_time_stamp());
     info!("current engine time: {:#?}", time.get_sim_time());
+}
+
+#[derive(Debug, Default, Clone)]
+#[repr(C)]
+struct EngineTime {
+    pub unk00: [u8; 8],
+}
+
+unsafe impl NativeRepr for EngineTime {
+    // this needs to refer to an actual in-game type name
+    const NAME: &'static str = "EngineTime";
 }

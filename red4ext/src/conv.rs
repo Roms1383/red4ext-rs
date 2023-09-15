@@ -4,7 +4,7 @@ use red4ext_sys::interop::{EntityId, ItemId, Mem};
 
 use crate::types::{
     CName, Color, IScriptable, RedArray, RedString, Ref, ResRef, ScriptRef, TweakDbId, Variant,
-    Vector2, EngineTime
+    Vector2
 };
 
 /// # Safety
@@ -199,7 +199,6 @@ impl_native_repr!(u16, "Uint16");
 impl_native_repr!(u8, "Uint8");
 impl_native_repr!(bool, "Bool");
 impl_native_repr!(CName, "CName");
-impl_native_repr!(EngineTime, "EngineTime");
 impl_native_repr!(ResRef, "ResRef", "redResourceReferenceScriptToken");
 impl_native_repr!(TweakDbId, "TweakDBID");
 impl_native_repr!(ItemId, "ItemID", "gameItemID");
