@@ -33,3 +33,29 @@ public func TestFields() -> Void {
         LogChannel(n"DEBUG", s"\(prop.GetName()): \(prop.GetType().GetName())");
     }
 }
+
+@if(ModuleExists("Codeware"))
+public func TestStatic() -> Void {
+    let cls = Reflection.GetClass(n"EngineTime");
+    let fromfloat = cls.GetStaticFunction(n"FromFloat");
+    let tofloat = cls.GetStaticFunction(n"ToFloat");
+    let engine = fromfloat.Call([837997.8]);
+    let raw = tofloat.Call([engine]);
+    LogChannel(n"DEBUG", ToString(raw));
+}
+
+@addMethod(PlayerPuppet)
+public func TestRoundTrip() -> Void {
+    let system: ref<TimeSystem> = GameInstance.GetTimeSystem(this.GetGame());
+    let sim: EngineTime = system.GetSimTime();
+    let float: Float = EngineTime.ToFloat(sim);
+    LogChannel(n"DEBUG", ToString(float));
+    let cls = Reflection.GetClass(n"EngineTime");
+    let fromfloat = cls.GetStaticFunction(n"FromFloat");
+    let outcome: Bool;
+    let back = fromfloat.Call([float], outcome);
+    LogChannel(n"DEBUG", ToString(outcome));
+    let casted: EngineTime = FromVariant<EngineTime>(back);
+    let roundtrip: Float = EngineTime.ToFloat(casted);
+    LogChannel(n"DEBUG", ToString(roundtrip));
+}
