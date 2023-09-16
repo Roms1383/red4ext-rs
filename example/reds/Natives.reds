@@ -3,6 +3,10 @@ native func UseTypes(name: CName, tweak: TweakDBID, item: ItemID, entity: Entity
 native func CallDemo(player: ref<PlayerPuppet>) -> Void;
 native func CallNativeDemo(time: ref<TimeSystem>) -> Void;
 native func CompareEngineTime(time: EngineTime, float: Float) -> Void;
+native func DebugBoardDefinition(definition: BlackboardID_Uint) -> Void;
+
+@addField(PlayerStateMachineDef)
+public let BoardDefinition: BlackboardID_Uint;
 
 // call like: Game.GetPlayer():Test()
 @addMethod(PlayerPuppet)

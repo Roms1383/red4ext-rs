@@ -10,6 +10,7 @@ define_plugin! {
         register_function!("CallDemo", call_demo);
         register_function!("CallNativeDemo", call_native_demo);
         register_function!("CompareEngineTime", compare_engine_time);
+        register_function!("DebugBoardDefinition", debug_board_definition);
     }
 }
 
@@ -96,6 +97,8 @@ impl PlayerPuppet {
 
     /// imports 'public final static func CanApplyBreathingEffect(player: wref<PlayerPuppet>) -> Bool'
     fn can_apply_breathing_effect(player: PlayerPuppet) -> bool;
+
+    fn get_player_state_machine_blackboard(&self) -> IBlackboard;
 }
 
 unsafe impl RefRepr for PlayerPuppet {
@@ -166,4 +169,88 @@ impl EngineTime {
 
 fn compare_engine_time(sim: EngineTime, float: f32) {
     info!("compare engine time: {:#?}\n{}", sim, float);
+}
+
+#[derive(Clone, Default)]
+#[repr(transparent)]
+struct IBlackboard(Ref<IScriptable>);
+
+unsafe impl RefRepr for IBlackboard {
+    type Type = Strong;
+
+    const CLASS_NAME: &'static str = "IBlackboard";
+}
+
+#[derive(Clone, Default)]
+#[repr(transparent)]
+struct AllBlackboardDefinitions(Ref<IScriptable>);
+
+unsafe impl RefRepr for AllBlackboardDefinitions {
+    type Type = Strong;
+
+    const CLASS_NAME: &'static str = "AllBlackboardDefinitions";
+}
+
+#[redscript_import]
+impl IBlackboard {
+    #[redscript(native)]
+    fn get_uint(id: BlackboardIdUint) -> u32;
+}
+
+#[derive(Debug, Default, Clone)]
+#[repr(C)]
+struct BlackboardIdUint {
+    pub unk00: [u8; 8],
+    pub id: Id,
+}
+
+unsafe impl NativeRepr for BlackboardIdUint {
+    // this needs to refer to an actual in-game type name
+    const NAME: &'static str = "BlackboardID_Uint";
+    const NATIVE_NAME: &'static str = "gamebbScriptID_Uint32";
+}
+
+#[derive(Debug, Default, Clone)]
+#[repr(C)]
+struct Id {
+    g: CName,
+}
+
+unsafe impl NativeRepr for Id {
+    // this needs to refer to an actual in-game type name
+    const NAME: &'static str = "gamebbID";
+}
+
+/// debug a blackboard definition
+///
+/// try in-game in CET console:
+///
+/// ```lua
+/// DebugBoardDefinition(GetAllBlackboardDefs().PlayerStateMachine.BoardDefinition)
+/// Game.GetPlayer():GetPlayerStateMachineBlackboard():SetUint(GetAllBlackboardDefs().PlayerStateMachine.BoardDefinition, 3136870631)
+/// LogChannel(CName.new("DEBUG"), Game.GetPlayer():GetPlayerStateMachineBlackboard():GetUint(GetAllBlackboardDefs().PlayerStateMachine.BoardDefinition))
+/// LogChannel(CName.new("DEBUG"), NameToHash(CName.new("BoardDefinition")))
+/// ```
+/// 
+/// ```rust
+/// BlackboardIdUint {
+///     unk00: [
+///         0,
+///         0,
+///         0,
+///         0,
+///         0,
+///         0,
+///         0,
+///         0,
+///     ],
+///     id: Id {
+///         g: CName {
+///             hash: 16853031015546721478, // = "BoardDefinition" CName hash
+///         },
+///     },
+/// }
+/// ```
+fn debug_board_definition(definition: BlackboardIdUint) {
+    info!("blackboard definition: {:#?}", definition);
 }
