@@ -8,6 +8,7 @@ define_plugin! {
         register_function!("SumInts", sum_ints);
         register_function!("UseTypes", use_types);
         register_function!("CallDemo", call_demo);
+        register_function!("TestNativeStruct", test_native_struct);
     }
 }
 
@@ -63,6 +64,19 @@ fn call_demo(player: PlayerPuppet) {
         "can apply breating effect: {}",
         PlayerPuppet::can_apply_breathing_effect(player.clone())
     );
+}
+
+/// make a round-trip between Redscript and Rust
+///
+/// try in-game in CET console:
+///
+/// ```lua
+/// translation = TestNativeStruct("beautiful", "handsome", Locale.English); LogChannel(CName.new("DEBUG"), translation.female); LogChannel(CName.new("DEBUG"), translation.male)
+/// ```
+/// > ⚠️ output can be found in mod's logs
+fn test_native_struct(female: String, male: String, locale: Locale) -> Translation {
+    let translation = Translation::create(female, male, locale);
+    translation
 }
 
 /// import a global operator
@@ -128,4 +142,35 @@ impl EngineTime {
     /// imports `public static native func ToFloat(self: EngineTime) -> Float`
     #[redscript(native)]
     fn to_float(time: EngineTime) -> f32;
+}
+
+#[derive(Debug, Default, Clone)]
+#[repr(C)]
+struct Translation {
+    pub female: RedString,
+    pub male: RedString,
+    pub locale: Locale,
+}
+
+unsafe impl NativeRepr for Translation {
+    const NAME: &'static str = "Translation";
+}
+
+#[redscript_import]
+impl Translation {
+    /// imports `public static func Create(female: String, male: String, locale: Locale) -> Translation`
+    fn create(female: String, male: String, locale: Locale) -> Translation;
+}
+
+#[derive(Debug, Default, Clone, Copy)]
+#[repr(i64)]
+#[allow(dead_code)]
+enum Locale {
+    #[default]
+    English = 0,
+    Polish = 1,
+}
+
+unsafe impl NativeRepr for Locale {
+    const NAME: &'static str = "Locale";
 }
