@@ -114,7 +114,7 @@ macro_rules! call {
 #[macro_export]
 macro_rules! call_direct {
     ($rtti:expr, $this:expr, $func:expr, ($( $args:expr ),*) -> $rett:ty) => {{
-        let args = ::std::mem::forget(($($crate::invocable::into_type_and_repr(&mut $rtti, $args)),*));
+        let args = ($($crate::invocable::into_type_and_repr(&mut $rtti, $args)),*);
         let args = $crate::invocable::Args::to_stack_args(&args);
         let res: ::std::result::Result<$rett, _> = $crate::invocable::invoke($this, $func, &args);
         res
@@ -218,10 +218,10 @@ const fn get_native_cname<A: NativeRepr>() -> CName {
 }
 
 #[inline]
-pub fn into_type_and_repr<A: IntoRepr>(rtti: &mut Rtti<'_>, val: A) -> (RedType, A::Repr) {
+pub fn into_type_and_repr<A: IntoRepr>(rtti: &mut Rtti<'_>, val: A) -> (RedType, ::std::mem::ManuallyDrop::<A::Repr>) {
     (
         rtti.get_type(CName::new(A::Repr::NATIVE_NAME)),
-        val.into_repr(),
+        ::std::mem::ManuallyDrop::new(val.into_repr()),
     )
 }
 
