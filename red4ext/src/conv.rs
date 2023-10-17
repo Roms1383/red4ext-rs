@@ -1,5 +1,3 @@
-use std::mem::ManuallyDrop;
-
 use const_combine::bounded::const_combine as combine;
 use red4ext_sys::ffi::{self, IScriptable};
 use red4ext_sys::interop::{EntityId, ItemId, Mem};
@@ -56,11 +54,11 @@ unsafe impl<A: ClassType> NativeRepr for WRef<A> {
     const NATIVE_NAME: &'static str = combine!("whandle:", A::NATIVE_NAME);
 }
 
-unsafe impl<A: NativeRepr> NativeRepr for ManuallyDrop<A> {
-    const NAME: &'static str = A::NAME;
-    const MANGLED_NAME: &'static str = A::MANGLED_NAME;
-    const NATIVE_NAME: &'static str = A::NATIVE_NAME;
-}
+// unsafe impl<A: NativeRepr> NativeRepr for ManuallyDrop<A> {
+//     const NAME: &'static str = A::NAME;
+//     const MANGLED_NAME: &'static str = A::MANGLED_NAME;
+//     const NATIVE_NAME: &'static str = A::NATIVE_NAME;
+// }
 
 pub trait IntoRepr: Sized {
     type Repr: NativeRepr;
@@ -78,7 +76,7 @@ impl<A: NativeRepr> IntoRepr for A {
 }
 
 impl IntoRepr for String {
-    type Repr = ManuallyDrop<RedString>;
+    type Repr = RedString;
 
     #[inline]
     fn into_repr(self) -> Self::Repr {
@@ -87,11 +85,11 @@ impl IntoRepr for String {
 }
 
 impl IntoRepr for &str {
-    type Repr = ManuallyDrop<RedString>;
+    type Repr = RedString;
 
     #[inline]
     fn into_repr(self) -> Self::Repr {
-        ManuallyDrop::new(RedString::new(self))
+        RedString::new(self)
     }
 }
 
@@ -99,10 +97,10 @@ impl<A> IntoRepr for Vec<A>
 where
     A: IntoRepr,
 {
-    type Repr = ManuallyDrop<RedArray<A::Repr>>;
+    type Repr = RedArray<A::Repr>;
 
     fn into_repr(self) -> Self::Repr {
-        ManuallyDrop::new(RedArray::from_sized_iter(self.into_iter().map(IntoRepr::into_repr)))
+        RedArray::from_sized_iter(self.into_iter().map(IntoRepr::into_repr))
     }
 }
 
@@ -110,10 +108,10 @@ impl<A> IntoRepr for &[A]
 where
     A: IntoRepr + Clone,
 {
-    type Repr = ManuallyDrop<RedArray<A::Repr>>;
+    type Repr = RedArray<A::Repr>;
 
     fn into_repr(self) -> Self::Repr {
-        ManuallyDrop::new(RedArray::from_sized_iter(self.iter().cloned().map(IntoRepr::into_repr)))
+        RedArray::from_sized_iter(self.iter().cloned().map(IntoRepr::into_repr))
     }
 }
 

@@ -218,10 +218,10 @@ const fn get_native_cname<A: NativeRepr>() -> CName {
 }
 
 #[inline]
-pub fn into_type_and_repr<A: IntoRepr>(rtti: &mut Rtti<'_>, val: A) -> (RedType, A::Repr) {
+pub fn into_type_and_repr<A: IntoRepr>(rtti: &mut Rtti<'_>, val: A) -> (RedType, ::std::mem::ManuallyDrop::<A::Repr>) {
     (
         rtti.get_type(CName::new(A::Repr::NATIVE_NAME)),
-        val.into_repr(),
+        ::std::mem::ManuallyDrop::new(val.into_repr()),
     )
 }
 
