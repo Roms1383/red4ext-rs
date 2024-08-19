@@ -1,4 +1,4 @@
-use std::mem;
+use std::{mem, ptr};
 
 use super::{IScriptable, Ref, Type};
 use crate::class::{class_kind, ScriptClass};
@@ -94,6 +94,7 @@ impl GameEngine {
     }
 }
 
+#[derive(Debug, Default)]
 #[repr(transparent)]
 pub struct ScriptableSystem(red::ScriptableSystem);
 
@@ -101,6 +102,12 @@ unsafe impl ScriptClass for ScriptableSystem {
     type Kind = class_kind::Native;
 
     const NAME: &'static str = "gameScriptableSystem";
+}
+
+impl Clone for ScriptableSystem {
+    fn clone(&self) -> Self {
+        unsafe { ptr::read(self) }
+    }
 }
 
 impl AsRef<IScriptable> for ScriptableSystem {
