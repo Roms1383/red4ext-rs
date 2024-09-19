@@ -501,3 +501,7 @@ impl<T: NativeRepr> Drop for SharedPtr<T> {
         }
     }
 }
+
+unsafe impl<T: NativeRepr> NativeRepr for SharedPtr<T> {
+    const NAME: &'static str = <T as NativeRepr>::NAME;
+}
