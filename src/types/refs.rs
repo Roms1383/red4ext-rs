@@ -73,7 +73,14 @@ impl<T: ScriptClass> Ref<T> {
     #[inline]
     pub fn downgrade(self) -> WeakRef<T> {
         self.0.inc_weak();
-        WeakRef(self.0.clone())
+        WeakRef(BaseWeakRef(red::WeakPtrWithAccess {
+            _phantom_0: PhantomData,
+            _base: red::SharedPtrBase {
+                instance: self.0 .0._base.instance,
+                refCount: self.0 .0._base.refCount,
+                ..Default::default()
+            },
+        }))
     }
 
     /// Attempts to cast the reference to a reference of another class.
@@ -82,14 +89,14 @@ impl<T: ScriptClass> Ref<T> {
     where
         U: ScriptClass,
     {
-        let inst = unsafe { (self.0 .0.instance as *const ISerializable).as_ref() }?;
+        let inst = unsafe { (self.0 .0._base.instance as *const ISerializable).as_ref() }?;
         inst.is_a::<U>().then(|| unsafe { mem::transmute(self) })
     }
 
     /// Returns whether the reference is null.
     #[inline]
     pub fn is_null(&self) -> bool {
-        self.0 .0.instance.is_null()
+        self.0 .0._base.instance.is_null()
     }
 
     #[inline]
@@ -97,7 +104,7 @@ impl<T: ScriptClass> Ref<T> {
     where
         U: ScriptClass,
     {
-        unsafe { (self.0 .0.instance as *const ISerializable).as_ref() }
+        unsafe { (self.0 .0._base.instance as *const ISerializable).as_ref() }
             .is_some_and(ISerializable::is_exactly_a::<U>)
     }
 
@@ -106,7 +113,7 @@ impl<T: ScriptClass> Ref<T> {
     where
         U: ScriptClass,
     {
-        unsafe { (self.0 .0.instance as *const ISerializable).as_ref() }
+        unsafe { (self.0 .0._base.instance as *const ISerializable).as_ref() }
             .is_some_and(ISerializable::is_a::<U>)
     }
 }
@@ -129,8 +136,8 @@ impl<T: ScriptClass> Clone for Ref<T> {
 impl<T: ScriptClass> Drop for Ref<T> {
     #[inline]
     fn drop(&mut self) {
-        if self.0.dec_strong() && !self.0 .0.instance.is_null() {
-            let ptr = self.0 .0.instance.cast::<NativeType<T>>();
+        if self.0.dec_strong() && !self.0 .0._base.instance.is_null() {
+            let ptr = self.0 .0._base.instance.cast::<NativeType<T>>();
             unsafe { ptr::drop_in_place(ptr) }
         }
     }
@@ -139,24 +146,94 @@ impl<T: ScriptClass> Drop for Ref<T> {
 unsafe impl<T: ScriptClass> Send for Ref<T> {}
 unsafe impl<T: ScriptClass> Sync for Ref<T> {}
 
+#[derive(Debug)]
+#[repr(transparent)]
+struct BaseWeakRef<T>(red::WeakPtrWithAccess<T>);
+
 /// A weak reference to a script class.
 /// Before use, it must be upgraded to a strong reference using [`WeakRef::upgrade`].
 #[repr(transparent)]
-pub struct WeakRef<T: ScriptClass>(BaseRef<NativeType<T>>);
+pub struct WeakRef<T: ScriptClass>(BaseWeakRef<NativeType<T>>);
+
+impl<T> BaseWeakRef<T> {
+    fn inc_strong_if_non_zero(&self) -> bool {
+        let Some(cnt) = self.ref_count() else {
+            return false;
+        };
+
+        cnt.strong()
+            .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |x| {
+                (x != 0).then(|| x + 1)
+            })
+            .is_ok()
+    }
+
+    #[inline]
+    fn inc_weak(&self) {
+        if let Some(cnt) = self.ref_count() {
+            cnt.weak_refs().fetch_add(1, Ordering::Relaxed);
+        }
+    }
+
+    fn dec_weak(&mut self) {
+        if self.0._base.refCount.is_null() {
+            return;
+        }
+        unsafe {
+            let dec_weak = crate::fn_from_hash!(Handle_DecWeakRef, unsafe extern "C" fn(VoidPtr));
+            dec_weak(self as *mut _ as VoidPtr);
+        }
+    }
+
+    #[inline]
+    fn ref_count(&self) -> Option<&RefCount> {
+        unsafe { self.0._base.refCount.cast::<RefCount>().as_ref() }
+    }
+}
 
 impl<T: ScriptClass> WeakRef<T> {
     /// Attempts to upgrade the weak reference to a strong reference.
     /// Returns [`None`] if the strong reference count is zero.
     #[inline]
     pub fn upgrade(self) -> Option<Ref<T>> {
-        self.0.inc_strong_if_non_zero().then(|| Ref(self.0.clone()))
+        self.0.inc_strong_if_non_zero().then(|| {
+            Ref(BaseRef(red::SharedPtrWithAccess {
+                _phantom_0: PhantomData,
+                _base: red::SharedPtrBase {
+                    _phantom_0: PhantomData,
+                    instance: self.0 .0._base.instance,
+                    refCount: self.0 .0._base.refCount,
+                },
+            }))
+        })
+    }
+}
+
+impl<T> Default for BaseWeakRef<T> {
+    #[inline]
+    fn default() -> Self {
+        Self(red::WeakPtrWithAccess::<T>::default())
+    }
+}
+
+impl<T> Clone for BaseWeakRef<T> {
+    #[inline]
+    fn clone(&self) -> Self {
+        Self(red::WeakPtrWithAccess {
+            _base: red::SharedPtrBase {
+                instance: self.0._base.instance,
+                refCount: self.0._base.refCount,
+                ..Default::default()
+            },
+            ..Default::default()
+        })
     }
 }
 
 impl<T: ScriptClass> Default for WeakRef<T> {
     #[inline]
     fn default() -> Self {
-        Self(BaseRef::default())
+        Self(BaseWeakRef::default())
     }
 }
 
@@ -180,17 +257,17 @@ unsafe impl<T: ScriptClass> Sync for WeakRef<T> {}
 
 #[derive(Debug)]
 #[repr(transparent)]
-struct BaseRef<T>(red::SharedPtrBase<T>);
+struct BaseRef<T>(red::SharedPtrWithAccess<T>);
 
 impl<T> BaseRef<T> {
     #[inline]
     fn instance(&self) -> Option<&T> {
-        unsafe { self.0.instance.as_ref() }
+        unsafe { self.0._base.instance.as_ref() }
     }
 
     #[inline]
     fn instance_mut(&mut self) -> Option<&mut T> {
-        unsafe { self.0.instance.as_mut() }
+        unsafe { self.0._base.instance.as_mut() }
     }
 
     #[inline]
@@ -233,7 +310,7 @@ impl<T> BaseRef<T> {
     }
 
     fn dec_weak(&mut self) {
-        if self.0.refCount.is_null() {
+        if self.0._base.refCount.is_null() {
             return;
         }
         unsafe {
@@ -244,23 +321,26 @@ impl<T> BaseRef<T> {
 
     #[inline]
     fn ref_count(&self) -> Option<&RefCount> {
-        unsafe { self.0.refCount.cast::<RefCount>().as_ref() }
+        unsafe { self.0._base.refCount.cast::<RefCount>().as_ref() }
     }
 }
 
 impl<T> Default for BaseRef<T> {
     #[inline]
     fn default() -> Self {
-        Self(red::SharedPtrBase::default())
+        Self(red::SharedPtrWithAccess::<T>::default())
     }
 }
 
 impl<T> Clone for BaseRef<T> {
     #[inline]
     fn clone(&self) -> Self {
-        Self(red::SharedPtrBase {
-            instance: self.0.instance,
-            refCount: self.0.refCount,
+        Self(red::SharedPtrWithAccess {
+            _base: red::SharedPtrBase {
+                instance: self.0._base.instance,
+                refCount: self.0._base.refCount,
+                ..Default::default()
+            },
             ..Default::default()
         })
     }
@@ -268,7 +348,7 @@ impl<T> Clone for BaseRef<T> {
 
 #[derive(Debug, Clone, Copy)]
 #[repr(transparent)]
-struct RefCount(red::RefCnt);
+pub struct RefCount(red::RefCnt);
 
 impl RefCount {
     #[inline]
@@ -318,3 +398,33 @@ impl<'a, T: NativeRepr> ScriptRef<'a, T> {
         !self.0.ref_.is_null()
     }
 }
+
+#[derive(Debug)]
+#[repr(transparent)]
+struct BaseShared<T>(red::SharedPtr<T>);
+
+impl<T> Default for BaseShared<T> {
+    #[inline]
+    fn default() -> Self {
+        Self(red::SharedPtr::<T>::default())
+    }
+}
+
+impl<T> Clone for BaseShared<T> {
+    #[inline]
+    fn clone(&self) -> Self {
+        Self(red::SharedPtr {
+            _phantom_0: PhantomData,
+            _base: red::SharedPtrWithAccess {
+                _phantom_0: PhantomData,
+                _base: red::SharedPtrBase {
+                    _phantom_0: PhantomData,
+                    instance: self.0._base._base.instance,
+                    refCount: self.0._base._base.refCount,
+                },
+            },
+        })
+    }
+}
+
+pub struct SharedPtr<T: NativeRepr>(BaseShared<T>);
