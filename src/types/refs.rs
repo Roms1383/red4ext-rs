@@ -269,7 +269,7 @@ impl<T> Clone for BaseRef<T> {
 
 #[derive(Debug, Clone, Copy)]
 #[repr(transparent)]
-pub(crate) struct RefCount(red::RefCnt);
+struct RefCount(red::RefCnt);
 
 impl RefCount {
     #[inline]
@@ -281,9 +281,34 @@ impl RefCount {
     fn weak_refs(&self) -> &AtomicU32 {
         unsafe { AtomicU32::from_ptr(&self.0.weakRefs as *const _ as _) }
     }
+}
+
+#[derive(Debug, Clone)]
+#[repr(transparent)]
+pub(super) struct RedRefCount(red::RefCnt);
+
+extern "system" {
+    pub fn InterlockedIncrement(addend: *mut i32);
+    pub fn InterlockedExchangeAdd(addend: *mut i32, value: i32) -> i32;
+}
+
+impl RedRefCount {
+    #[inline]
+    fn inc_ref(&mut self) {
+        unsafe {
+            InterlockedIncrement(self.0.strongRefs as i32 as *const i32 as *mut i32);
+        }
+    }
+
+    #[inline]
+    fn dec_ref(&mut self) -> bool {
+        unsafe {
+            InterlockedExchangeAdd(self.0.strongRefs as i32 as *const i32 as *mut i32, -1) == 1
+        }
+    }
 
     fn new() -> PoolRef<Self> {
-        let mut refcount = RefCount::alloc().expect("should allocate a RefCount");
+        let mut refcount = RedRefCount::alloc().expect("should allocate a RefCount");
         let ptr = refcount.as_mut_ptr();
         unsafe {
             (*ptr).0.strongRefs = 1;
@@ -345,8 +370,8 @@ impl<T: NativeRepr> Clone for SharedPtr<T> {
 impl<T: Default + NativeRepr> SharedPtr<T> {
     pub fn new_with(mut value: T) -> Self {
         let mut this = red::SharedPtrBase::<T>::default();
-        let mut refcount = RefCount::new();
-        this.refCount = &mut *refcount as *const _ as *mut _;
+        let mut refcount = RedRefCount::new();
+        this.refCount = &mut refcount as *const _ as *mut _;
         this.instance = &mut value as *const _ as *mut _;
         mem::forget(refcount);
         mem::forget(value);
@@ -356,31 +381,32 @@ impl<T: Default + NativeRepr> SharedPtr<T> {
 
 impl<T> SharedPtr<T> {
     #[inline]
-    fn ref_count(&self) -> Option<&RefCount> {
-        unsafe { self.0.refCount.cast::<RefCount>().as_ref() }
+    fn ref_count_mut(&self) -> Option<&mut RedRefCount> {
+        unsafe { self.0.refCount.cast::<RedRefCount>().as_mut() }
     }
 
     #[inline]
     fn inc_strong(&self) {
-        if let Some(cnt) = self.ref_count() {
-            cnt.strong().fetch_add(1, Ordering::Relaxed);
+        if let Some(cnt) = self.ref_count_mut() {
+            cnt.inc_ref();
         }
     }
 
     fn dec_strong(&mut self) -> bool {
-        let Some(cnt) = self.ref_count() else {
+        let Some(cnt) = self.ref_count_mut() else {
             return false;
         };
 
-        cnt.strong().fetch_sub(1, Ordering::Relaxed) == 1
+        cnt.dec_ref()
     }
 }
 
 impl<T> Drop for SharedPtr<T> {
     fn drop(&mut self) {
         if self.dec_strong() && !self.0.instance.is_null() {
-            let own_refcount =
-                unsafe { mem::transmute::<*mut red::RefCnt, PoolRef<RefCount>>(self.0.refCount) };
+            let own_refcount = unsafe {
+                mem::transmute::<*mut red::RefCnt, PoolRef<RedRefCount>>(self.0.refCount)
+            };
             let ptr_instance = self.0.instance;
             mem::drop(own_refcount);
             unsafe {

@@ -4,7 +4,7 @@ use std::{mem, ops, ptr};
 use once_cell::race::OnceNonZeroUsize;
 use sealed::sealed;
 
-use super::refs::RefCount;
+use super::refs::RedRefCount;
 use super::{GlobalFunction, IScriptable, Method, Property, StaticMethod};
 use crate::raw::root::RED4ext as red;
 use crate::raw::root::RED4ext::Memory::AllocationResult;
@@ -114,7 +114,7 @@ impl Poolable for IScriptable {
 }
 
 #[sealed]
-impl Poolable for RefCount {
+impl Poolable for RedRefCount {
     type Pool = RefCountPool;
 }
 
