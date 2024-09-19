@@ -1,7 +1,6 @@
 use sealed::sealed;
 
 use crate::types::{IScriptable, Ref};
-use crate::NativeRepr;
 
 /// A trait for types that represent script classes.
 ///

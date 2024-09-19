@@ -277,18 +277,6 @@ impl<T> BaseRef<T> {
         }
     }
 
-    fn inc_strong_if_non_zero(&self) -> bool {
-        let Some(cnt) = self.ref_count() else {
-            return false;
-        };
-
-        cnt.strong()
-            .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |x| {
-                (x != 0).then(|| x + 1)
-            })
-            .is_ok()
-    }
-
     fn dec_strong(&mut self) -> bool {
         let Some(cnt) = self.ref_count() else {
             return false;
@@ -427,4 +415,66 @@ impl<T> Clone for BaseShared<T> {
     }
 }
 
+impl<T> BaseShared<T> {
+    #[inline]
+    fn inc_strong(&self) {
+        if let Some(cnt) = self.ref_count() {
+            cnt.strong().fetch_add(1, Ordering::Relaxed);
+        }
+    }
+
+    fn dec_strong(&mut self) -> bool {
+        let Some(cnt) = self.ref_count() else {
+            return false;
+        };
+
+        if cnt.strong().fetch_sub(1, Ordering::Relaxed) == 1 {
+            self.dec_weak();
+            true
+        } else {
+            false
+        }
+    }
+
+    fn dec_weak(&mut self) {
+        if self.0._base._base.refCount.is_null() {
+            return;
+        }
+        unsafe {
+            let dec_weak = crate::fn_from_hash!(Handle_DecWeakRef, unsafe extern "C" fn(VoidPtr));
+            dec_weak(self as *mut _ as VoidPtr);
+        }
+    }
+
+    #[inline]
+    fn ref_count(&self) -> Option<&RefCount> {
+        unsafe { self.0._base._base.refCount.cast::<RefCount>().as_ref() }
+    }
+}
+
 pub struct SharedPtr<T: NativeRepr>(BaseShared<T>);
+
+impl<T: NativeRepr> Default for SharedPtr<T> {
+    #[inline]
+    fn default() -> Self {
+        Self(BaseShared::default())
+    }
+}
+
+impl<T: NativeRepr> Clone for SharedPtr<T> {
+    #[inline]
+    fn clone(&self) -> Self {
+        self.0.inc_strong();
+        Self(self.0.clone())
+    }
+}
+
+impl<T: NativeRepr> Drop for SharedPtr<T> {
+    #[inline]
+    fn drop(&mut self) {
+        if self.0.dec_strong() && !self.0 .0._base._base.instance.is_null() {
+            let ptr = self.0 .0._base._base.instance.cast::<T>();
+            unsafe { ptr::drop_in_place(ptr) }
+        }
+    }
+}
