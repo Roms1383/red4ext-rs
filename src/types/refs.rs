@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::{mem, ptr};
 
-use super::{CName, ISerializable, Type};
+use super::{CName, ISerializable, PoolRef, PoolableOps, Type};
 use crate::class::{NativeType, ScriptClass};
 use crate::raw::root::RED4ext as red;
 use crate::repr::NativeRepr;
@@ -348,6 +348,16 @@ impl RefCount {
     fn weak_refs(&self) -> &AtomicU32 {
         unsafe { AtomicU32::from_ptr(&self.0.weakRefs as *const _ as _) }
     }
+
+    fn new() -> PoolRef<Self> {
+        let mut refcount = RefCount::alloc().expect("should allocate a RefCount");
+        let ptr = refcount.as_mut_ptr();
+        unsafe {
+            (*ptr).0.strongRefs = 1;
+            (*ptr).0.weakRefs = 1;
+            refcount.assume_init()
+        }
+    }
 }
 
 /// A reference to local script data.
@@ -453,6 +463,19 @@ impl<T> BaseShared<T> {
 }
 
 pub struct SharedPtr<T: NativeRepr>(BaseShared<T>);
+
+impl<T: NativeRepr> SharedPtr<T> {
+    /// Creates a new reference to the class and initializes it with the provided function.
+    pub fn new_with(mut value: T) -> Self {
+        let mut this = red::SharedPtr::<T>::default();
+        let mut refcount = RefCount::new();
+        this._base._base.refCount = &mut refcount as *const _ as *mut _;
+        this._base._base.instance = &mut value as *const _ as *mut _;
+        mem::forget(refcount);
+        mem::forget(value);
+        Self(BaseShared(this))
+    }
+}
 
 impl<T: NativeRepr> Default for SharedPtr<T> {
     #[inline]
