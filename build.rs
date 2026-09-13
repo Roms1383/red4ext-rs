@@ -73,12 +73,15 @@ impl bindgen::callbacks::ParseCallbacks for Callbacks {
             vec![]
         }
     }
+
     fn header_file(&self, filename: &str) {
         self.0.header_file(filename);
     }
+
     fn include_file(&self, filename: &str) {
         self.0.include_file(filename);
     }
+
     fn read_env_var(&self, key: &str) {
         self.0.read_env_var(key);
     }
