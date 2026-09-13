@@ -81,7 +81,12 @@ impl GameTime {
 
 impl std::fmt::Display for GameTime {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let [day, hour, min, sec] = unsafe { self.0.ToString().0 };
+        let [day, hour, min, sec] = [
+            unsafe { self.0.GetDay() },
+            unsafe { self.0.GetHour() },
+            unsafe { self.0.GetMinute() },
+            unsafe { self.0.GetSecond() },
+        ];
         write!(f, "{day}T{hour}:{min}:{sec}")
     }
 }
